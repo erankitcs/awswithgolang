@@ -25,3 +25,15 @@ cdktf init --template=go --project-name goserverlesaws --project-description "A 
 go get github.com/hashicorp/cdktf-provider-aws-go/aws/v9
 
 ```
+
+### Build Lamda Code
+```bash
+# Remember to build your handler executable for Linux!
+GOOS=linux GOARCH=amd64 go build -o main main.go
+```
+
+### Deploy to AWS via Terraform Cloud
+```bash
+cdktf deploy
+
+```

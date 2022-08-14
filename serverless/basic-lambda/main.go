@@ -20,7 +20,7 @@ type LambdaResponse struct {
 func handleRequest(ctx context.Context, event LambdaEvent) (LambdaResponse, error) {
 	lc, _ := lambdacontext.FromContext(ctx)
 	fmt.Printf("Running %s", lc.ClientContext.Client.AppPackageName)
-	return LambdaResponse{Message: fmt.Sprintf("hello %s , Your age is %d", event.Name, event.Age)}, nil
+	return LambdaResponse{Message: fmt.Sprintf("hello %s , Your age is %d Goodby !!!", event.Name, event.Age)}, nil
 }
 
 func main() {
