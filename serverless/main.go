@@ -7,6 +7,7 @@ import (
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9"
+	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/apigateway"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/iam"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/lambdafunction"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/s3"
@@ -51,7 +52,6 @@ func NewMyStack(scope constructs.Construct, id string) cdktf.TerraformStack {
 		Path: jsii.String("basic-lambda"),
 		Type: cdktf.AssetType_ARCHIVE,
 	})
-
 	// Creating S3 bucket for keeping Lambda Artifacts
 	bucket := s3.NewS3Bucket(stack, jsii.String("s3lambdabucket"), &s3.S3BucketConfig{
 		BucketPrefix: jsii.String(projectname),
@@ -101,9 +101,69 @@ func NewMyStack(scope constructs.Construct, id string) cdktf.TerraformStack {
 		SourceCodeHash: cdktf.Fn_Filebase64sha256(lambdaArchivesObj.Source()),
 	})
 
-	cdktf.NewTerraformOutput(stack, jsii.String("basic-lamga-arn"), &cdktf.TerraformOutputConfig{
+	apigw := apigateway.NewApiGatewayRestApi(stack, jsii.String("apigw"), &apigateway.ApiGatewayRestApiConfig{
+		Name: jsii.String("basiclambda"),
+	})
+
+	apigwresource := apigateway.NewApiGatewayResource(stack, jsii.String("apigwresource"), &apigateway.ApiGatewayResourceConfig{
+		ParentId:  apigw.RootResourceId(),
+		PathPart:  jsii.String("hello"),
+		RestApiId: apigw.Id(),
+	})
+
+	apigwget := apigateway.NewApiGatewayMethod(stack, jsii.String("get"), &apigateway.ApiGatewayMethodConfig{
+		Authorization: jsii.String("NONE"),
+		HttpMethod:    jsii.String("GET"),
+		ResourceId:    apigwresource.Id(),
+		RestApiId:     apigw.Id(),
+	})
+
+	apiintegrate := apigateway.NewApiGatewayIntegration(stack, jsii.String("lambda"), &apigateway.ApiGatewayIntegrationConfig{
+		HttpMethod:            apigwget.HttpMethod(),
+		ResourceId:            apigwresource.Id(),
+		RestApiId:             apigw.Id(),
+		Type:                  jsii.String("AWS_PROXY"),
+		IntegrationHttpMethod: jsii.String("POST"),
+		Uri:                   basiclambda.InvokeArn(),
+	})
+
+	lambdafunction.NewLambdaPermission(stack, jsii.String("apipermission"), &lambdafunction.LambdaPermissionConfig{
+		StatementId:  jsii.String("AllowExecutionFromAPIGateway"),
+		Action:       jsii.String("lambda:InvokeFunction"),
+		FunctionName: basiclambda.FunctionName(),
+		Principal:    jsii.String("apigateway.amazonaws.com"),
+		SourceArn:    jsii.String(fmt.Sprintf("%s/*/%s%s", *apigw.ExecutionArn(), *apigwget.HttpMethod(), *apigwresource.Path())),
+	})
+
+	apideploy := apigateway.NewApiGatewayDeployment(stack, jsii.String("apideploy"), &apigateway.ApiGatewayDeploymentConfig{
+		RestApiId: apigw.Id(),
+		Triggers: &map[string]*string{
+			"Redeployment": cdktf.Fn_Sha1(cdktf.Fn_Jsonencode([]string{
+				*apigwresource.Id(),
+				*apigwresource.Path(),
+				*apigwget.Id(),
+				*apiintegrate.Id(),
+			})),
+		},
+		Lifecycle: &cdktf.TerraformResourceLifecycle{
+			CreateBeforeDestroy: jsii.Bool(true),
+		},
+	})
+
+	apidevstage := apigateway.NewApiGatewayStage(stack, jsii.String("apidevstage"), &apigateway.ApiGatewayStageConfig{
+		DeploymentId: apideploy.Id(),
+		RestApiId:    apigw.Id(),
+		StageName:    jsii.String("dev"),
+	})
+
+	cdktf.NewTerraformOutput(stack, jsii.String("basic-lambda-arn"), &cdktf.TerraformOutputConfig{
 		Value: basiclambda.Arn(),
 	})
+
+	cdktf.NewTerraformOutput(stack, jsii.String("basic-lambda-api-devurl"), &cdktf.TerraformOutputConfig{
+		Value: fmt.Sprintf("%s%s", *apidevstage.InvokeUrl(), *apigwresource.Path()),
+	})
+
 	return stack
 }
 
