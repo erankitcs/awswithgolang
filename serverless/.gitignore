@@ -21,4 +21,7 @@ generated
 *.out
 
 basic-lambda/*
-!basic-lambda/*.go
+!basic-lambda/*go*
+
+basic-lambda-client/*
+!basic-lambda-client/*go*

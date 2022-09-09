@@ -8,6 +8,7 @@ import (
 	"github.com/aws/jsii-runtime-go"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/apigateway"
+	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/cognito"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/iam"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/lambdafunction"
 	"github.com/hashicorp/cdktf-provider-aws-go/aws/v9/s3"
@@ -47,7 +48,7 @@ func NewMyStack(scope constructs.Construct, id string) cdktf.TerraformStack {
 			},
 		},
 	})
-
+	// Lambda  Code
 	asset := cdktf.NewTerraformAsset(stack, jsii.String("lambda-asset"), &cdktf.TerraformAssetConfig{
 		Path: jsii.String("basic-lambda"),
 		Type: cdktf.AssetType_ARCHIVE,
@@ -101,6 +102,21 @@ func NewMyStack(scope constructs.Construct, id string) cdktf.TerraformStack {
 		SourceCodeHash: cdktf.Fn_Filebase64sha256(lambdaArchivesObj.Source()),
 	})
 
+	// Congnito Pool...
+
+	userpool := cognito.NewCognitoUserPool(stack, jsii.String("pool"), &cognito.CognitoUserPoolConfig{
+		Name: jsii.String("basiclambdauser"),
+		UsernameConfiguration: &cognito.CognitoUserPoolUsernameConfiguration{
+			CaseSensitive: jsii.Bool(false),
+		},
+	})
+
+	client := cognito.NewCognitoUserPoolClient(stack, jsii.String("client"), &cognito.CognitoUserPoolClientConfig{
+		Name:              jsii.String("basiclambdauserclient"),
+		UserPoolId:        userpool.Id(),
+		ExplicitAuthFlows: jsii.Strings("ALLOW_USER_PASSWORD_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"),
+	})
+	// API Gateway...
 	apigw := apigateway.NewApiGatewayRestApi(stack, jsii.String("apigw"), &apigateway.ApiGatewayRestApiConfig{
 		Name: jsii.String("basiclambda"),
 	})
@@ -111,11 +127,24 @@ func NewMyStack(scope constructs.Construct, id string) cdktf.TerraformStack {
 		RestApiId: apigw.Id(),
 	})
 
+	apiauth := apigateway.NewApiGatewayAuthorizer(stack, jsii.String("apiauth"), &apigateway.ApiGatewayAuthorizerConfig{
+		Name:         jsii.String("BasicLambdaAuthForGateway"),
+		Type:         jsii.String("COGNITO_USER_POOLS"),
+		RestApiId:    apigw.Id(),
+		ProviderArns: jsii.Strings(*userpool.Arn()),
+	})
+
 	apigwget := apigateway.NewApiGatewayMethod(stack, jsii.String("get"), &apigateway.ApiGatewayMethodConfig{
-		Authorization: jsii.String("NONE"),
-		HttpMethod:    jsii.String("GET"),
-		ResourceId:    apigwresource.Id(),
-		RestApiId:     apigw.Id(),
+		//Authorization: jsii.String("NONE"),
+		HttpMethod: jsii.String("GET"),
+		ResourceId: apigwresource.Id(),
+		RestApiId:  apigw.Id(),
+		//Adding Cognito
+		Authorization: jsii.String("COGNITO_USER_POOLS"),
+		AuthorizerId:  apiauth.Id(),
+		RequestParameters: &map[string]interface{}{
+			"method.request.path.proxy": jsii.Bool(true),
+		},
 	})
 
 	apiintegrate := apigateway.NewApiGatewayIntegration(stack, jsii.String("lambda"), &apigateway.ApiGatewayIntegrationConfig{
@@ -162,6 +191,14 @@ func NewMyStack(scope constructs.Construct, id string) cdktf.TerraformStack {
 
 	cdktf.NewTerraformOutput(stack, jsii.String("basic-lambda-api-devurl"), &cdktf.TerraformOutputConfig{
 		Value: fmt.Sprintf("%s%s", *apidevstage.InvokeUrl(), *apigwresource.Path()),
+	})
+
+	cdktf.NewTerraformOutput(stack, jsii.String("cognito-user-pool"), &cdktf.TerraformOutputConfig{
+		Value: userpool.Id(),
+	})
+
+	cdktf.NewTerraformOutput(stack, jsii.String("cognito-user-pool-client"), &cdktf.TerraformOutputConfig{
+		Value: client.Id(),
 	})
 
 	return stack
