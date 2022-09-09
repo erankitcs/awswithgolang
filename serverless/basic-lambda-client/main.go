@@ -49,6 +49,8 @@ func main() {
 	}
 
 	token := auth.AuthenticationResult.IdToken
+	fmt.Println("Calling with Age query string. Expect API gateway to execute Lambda and provide response.")
+	// Success Scenario
 	requestURL := fmt.Sprintf("%s?age=32", url)
 	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
@@ -67,6 +69,32 @@ func main() {
 	fmt.Printf("client: status code: %d\n", res.StatusCode)
 
 	resBody, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Printf("client: could not read response body: %s\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("client: response body: %s\n", resBody)
+
+	//Negative Scenario
+	fmt.Println("Calling without Age query string. Expect API gateway validation error.")
+	requestURL = url
+	req, err = http.NewRequest(http.MethodGet, requestURL, nil)
+	if err != nil {
+		fmt.Printf("client: could not create request: %s\n", err)
+		return
+	}
+	req.Header.Set("Authorization", *token)
+
+	res, err = http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Printf("client: error making http request: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("client: got response!\n")
+	fmt.Printf("client: status code: %d\n", res.StatusCode)
+
+	resBody, err = ioutil.ReadAll(res.Body)
 	if err != nil {
 		fmt.Printf("client: could not read response body: %s\n", err)
 		os.Exit(1)

@@ -134,16 +134,24 @@ func NewMyStack(scope constructs.Construct, id string) cdktf.TerraformStack {
 		ProviderArns: jsii.Strings(*userpool.Arn()),
 	})
 
+	apivalidator := apigateway.NewApiGatewayRequestValidator(stack, jsii.String("apiageparam"), &apigateway.ApiGatewayRequestValidatorConfig{
+		ValidateRequestParameters: jsii.Bool(true),
+		Name:                      jsii.String("age"),
+		RestApiId:                 apigw.Id(),
+	})
+
 	apigwget := apigateway.NewApiGatewayMethod(stack, jsii.String("get"), &apigateway.ApiGatewayMethodConfig{
 		//Authorization: jsii.String("NONE"),
 		HttpMethod: jsii.String("GET"),
 		ResourceId: apigwresource.Id(),
 		RestApiId:  apigw.Id(),
 		//Adding Cognito
-		Authorization: jsii.String("COGNITO_USER_POOLS"),
-		AuthorizerId:  apiauth.Id(),
+		Authorization:      jsii.String("COGNITO_USER_POOLS"),
+		AuthorizerId:       apiauth.Id(),
+		RequestValidatorId: apivalidator.Id(),
 		RequestParameters: &map[string]interface{}{
-			"method.request.path.proxy": jsii.Bool(true),
+			//"method.request.path.proxy":      jsii.Bool(true),
+			"method.request.querystring.age": jsii.Bool(true),
 		},
 	})
 
@@ -172,6 +180,8 @@ func NewMyStack(scope constructs.Construct, id string) cdktf.TerraformStack {
 				*apigwresource.Path(),
 				*apigwget.Id(),
 				*apiintegrate.Id(),
+				*apivalidator.Id(),
+				version,
 			})),
 		},
 		Lifecycle: &cdktf.TerraformResourceLifecycle{
