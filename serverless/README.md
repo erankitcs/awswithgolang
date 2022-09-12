@@ -26,6 +26,12 @@ go get github.com/hashicorp/cdktf-provider-aws-go/aws/v9
 
 ```
 
+## Application
+
+### Architecture
+
+![Architecture](cdftf_serverless.png)
+
 ### Build Lamda Code
 ```bash
 # Remember to build your handler executable for Linux!
@@ -36,4 +42,12 @@ GOOS=linux GOARCH=amd64 go build -o main main.go
 ```bash
 cdktf deploy
 
+```
+### Test API via Go based client
+1. Create a user using AWS console into AWS Cognito
+2. Build a Client and run
+```bash
+cd basic-lambda-client
+go build -o client main.go
+./client
 ```
