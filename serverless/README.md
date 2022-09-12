@@ -1,6 +1,6 @@
-## Golang based on Application based on AWS Serverless
+## Golang based Serverless API with AWS Cloud
  
-## Deployment using infra as code
+## Infra As Code (Terraform CDK)
 
 ### CDKTF Setup on Ubuntu WSL
 1. Install Latest Terraform (https://www.terraform.io/downloads)
