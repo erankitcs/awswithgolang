@@ -1,6 +1,9 @@
-# Welcome to your CDK Go project!
+## Welcome to Basic CDK Go project with AWS ECS!
 
-This is a blank project for CDK development with Go.
+This is a project for implementing basic Golang project with AWS ECS an  CDK development.
+
+## Resources
+1. VPC
 
 The `cdk.json` file tells the CDK toolkit how to execute your app.
 
